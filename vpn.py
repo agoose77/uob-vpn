@@ -81,6 +81,7 @@ def main():
 
     # Launch VPN
     driver.find_element_by_id("/Common/UoB_Research_NA").click()
+    input()
 
 
 if __name__ == "__main__":
