@@ -2,6 +2,7 @@ import getpass
 import re
 import shutil
 import zipfile
+import argparse
 from pathlib import Path
 from subprocess import run
 from typing import Sequence
@@ -50,7 +51,11 @@ def install_chromedriver(chromedriver_version: Sequence[str]):
             f"newly installed chromedriver at {install_path} is not on system path ({shutil.which('chromedriver')})")
 
 
-def main(use_full_vpn: bool = False):
+def main(argv=None):
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-f", "--full-vpn", action="store_true")
+    args = parser.parse_args(argv)
+
     username = input("username: ")
     password = getpass.getpass("password: ")
     two_factor = input("2fa: ")
@@ -79,7 +84,7 @@ def main(use_full_vpn: bool = False):
         driver.find_element_by_id("input_2").send_keys(password)
         driver.find_element_by_id("input_3").send_keys(two_factor)
 
-        if use_full_vpn:
+        if args.full_vpn:
             driver.find_element_by_id("input_4").click()
 
         driver.find_element_by_xpath('//input[@type="submit"]').click()
@@ -103,7 +108,11 @@ def main(use_full_vpn: bool = False):
             break
 
     # Launch VPN
-    driver.find_element_by_id("/Common/UoB_Research_NA").click()
+    try:
+        elem = driver.find_element_by_id("/Common/UoB_Research_NA")
+    except NoSuchElementException:
+        elem = driver.find_element_by_id("/Common/UoB_Research_full_NA")
+    elem.click()
     input()
 
     return 0
