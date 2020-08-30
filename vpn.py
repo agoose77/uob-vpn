@@ -8,6 +8,7 @@ from typing import Sequence
 from urllib.request import urlopen, urlretrieve
 
 from selenium import webdriver
+from selenium.common.exceptions import NoSuchElementException
 
 VERSION_NUMBER_PATTERN = r"(\d+)\.(\d+)\.(\d+)\.(\d+)"
 
@@ -45,23 +46,11 @@ def install_chromedriver(chromedriver_version: Sequence[str]):
 
     # Check we can find this installed chromedriver
     if Path(shutil.which("chromedriver")) != install_path:
-        raise RuntimeError(f"newly installed chromedriver at {install_path} is not on system path ({shutil.which('chromedriver')})")
+        raise RuntimeError(
+            f"newly installed chromedriver at {install_path} is not on system path ({shutil.which('chromedriver')})")
 
 
-def login(driver, username, password, two_factor):
-    driver.get("https://remoteaccess.bham.ac.uk")
-
-    driver.find_element_by_link_text("Click here to continue").click()
-    driver.find_element_by_link_text("Click here to continue").click()
-
-    driver.find_element_by_id("input_1").send_keys(username)
-    driver.find_element_by_id("input_2").send_keys(password)
-    driver.find_element_by_id("input_3").send_keys(two_factor)
-    driver.find_element_by_xpath('//input[@type="submit"]').click()
-    assert driver.title == "F5 Dynamic Webtop"
-
-
-def main():
+def main(use_full_vpn: bool = False):
     username = input("username: ")
     password = getpass.getpass("password: ")
     two_factor = input("2fa: ")
@@ -77,11 +66,47 @@ def main():
 
     # Create chromedriver
     driver = webdriver.Chrome()
-    login(driver, username, password, two_factor)
+
+    while True:
+        driver.get("https://remoteaccess.bham.ac.uk")
+        while True:
+            try:
+                driver.find_element_by_link_text("Click here to continue").click()
+            except NoSuchElementException:
+                break
+
+        driver.find_element_by_id("input_1").send_keys(username)
+        driver.find_element_by_id("input_2").send_keys(password)
+        driver.find_element_by_id("input_3").send_keys(two_factor)
+
+        if use_full_vpn:
+            driver.find_element_by_id("input_4").click()
+
+        driver.find_element_by_xpath('//input[@type="submit"]').click()
+
+        if driver.page_source.find("username or password is not correct") != -1:
+            print("Username, password, or 2fa was incorrect")
+
+            username = input("username: ") or username
+            password = getpass.getpass("password: ") or password
+            two_factor = input("2fa: ") or two_factor
+
+        elif driver.page_source.find("session could not be established") != -1:
+            print("An error occurred, re-try with new 2fa?")
+
+            two_factor = input("2fa: ")
+            if not two_factor:
+                return 1
+
+        else:
+            assert driver.title == "F5 Dynamic Webtop"
+            break
 
     # Launch VPN
     driver.find_element_by_id("/Common/UoB_Research_NA").click()
     input()
+
+    return 0
 
 
 if __name__ == "__main__":
