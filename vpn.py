@@ -153,5 +153,10 @@ class VPNApp(traitlets.config.Application):
         return 0
 
 
+def main(argv=None):
+  VPNApp.launch_instance(argv)
+
+
 if __name__ == "__main__":
-    VPNApp.launch_instance()
+  main()
+    
